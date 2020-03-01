@@ -1,0 +1,8 @@
+cmake_install.cmake
+*.cbp
+CMakeFiles
+cmake-build-debug
+CMakeCache.txt
+*.so
+Makefile
+.idea/
