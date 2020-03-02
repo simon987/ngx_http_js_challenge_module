@@ -4,7 +4,7 @@ project(nginx_js C)
 set(CMAKE_C_STANDARD 11)
 
 
-add_library(nginx_js SHARED library.c library.h)
+add_library(nginx_js SHARED library.c)
 
 target_include_directories(
         nginx_js
