@@ -1,14 +1,14 @@
 #include <stdio.h>
 #include "ngx_http.c"
 
-static ngx_int_t ngx_http_hello_world(ngx_conf_t *cf);
+static ngx_int_t ngx_http_js_challenge(ngx_conf_t *cf);
 
 static char *setup1(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 
-static ngx_int_t ngx_http_hello_world_handler(ngx_http_request_t *r);
+static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r);
 
 
-static ngx_command_t ngx_http_hello_world_commands[] = {
+static ngx_command_t ngx_http_js_challenge_commands[] = {
 
         {ngx_string("hello_world"),
 
@@ -16,22 +16,19 @@ static ngx_command_t ngx_http_hello_world_commands[] = {
                 // NGX_CONF_FLAG for boolean
          NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_NOARGS,
 
-
          setup1, /* configuration setup function */
          0, /* No offset. Only one context is supported. */
          0, /* No offset when storing the module configuration on struct. */
          NULL},
-
-        ngx_null_command /* command termination */
+        ngx_null_command
 };
 
-/* The hello world string. */
-//static u_char ngx_hello_world[] = HELLO_WORLD;
-
-/* The module context. */
-static ngx_http_module_t ngx_http_hello_world_module_ctx = {
+/**
+ * Module context
+ */
+static ngx_http_module_t ngx_http_js_challenge_module_ctx = {
         NULL, /* preconfiguration */
-        ngx_http_hello_world, /* postconfiguration */
+        ngx_http_js_challenge, /* postconfiguration */
 
         NULL, /* create main configuration */
         NULL, /* init main configuration */
@@ -39,15 +36,16 @@ static ngx_http_module_t ngx_http_hello_world_module_ctx = {
         NULL, /* create server configuration */
         NULL, /* merge server configuration */
 
+        //todo
         NULL, /* create location configuration */
         NULL /* merge location configuration */
 };
 
 /* Module definition. */
-ngx_module_t ngx_http_hello_world_module = {
+ngx_module_t ngx_http_js_challenge_module = {
         NGX_MODULE_V1,
-        &ngx_http_hello_world_module_ctx, /* module context */
-        ngx_http_hello_world_commands, /* module directives */
+        &ngx_http_js_challenge_module_ctx, /* module context */
+        ngx_http_js_challenge_commands, /* module directives */
         NGX_HTTP_MODULE, /* module type */
         NULL, /* init master */
         NULL, /* init module */
@@ -60,7 +58,7 @@ ngx_module_t ngx_http_hello_world_module = {
 };
 
 __always_inline
-void buf2hex(const unsigned char *buf, size_t buflen, char *hex_string) {
+static void buf2hex(const unsigned char *buf, size_t buflen, char *hex_string) {
     static const char hexdig[] = "0123456789ABCDEF";
 
     const unsigned char *p;
@@ -90,7 +88,7 @@ static const u_char JS_SOLVER[] =
         "            document.cookie = 'res=' + c + i + ';';"
         "            window.location.reload();"
         "            break;"
-        "        };"
+        "        }"
         "        i++;"
         "    }"
         "</script>Hello";
@@ -155,6 +153,7 @@ int verify_response(int32_t bucket, ngx_str_t addr, const char *secret, ngx_str_
      *                                           ^ offset 24
      */
 
+    //todo also check if the response is too large
     if (response.len <= SHA1_STR_LEN) {
         return -1;
     }
@@ -199,7 +198,7 @@ int get_cookie(ngx_http_request_t *r, ngx_str_t *name, ngx_str_t *value) {
     return -1;
 }
 
-static ngx_int_t ngx_http_hello_world_handler(ngx_http_request_t *r) {
+static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r) {
 
     //TODO: If the bucket is less than 5sec away from the next one, accept both current and latest bucket
 
@@ -245,11 +244,11 @@ static ngx_int_t ngx_http_hello_world_handler(ngx_http_request_t *r) {
 static char *setup1(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
 //    ngx_http_core_loc_conf_t *clcf; /* pointer to core location configuration */
 //    clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
-//    clcf->handler = ngx_http_hello_world_handler;
+//    clcf->handler = ngx_http_js_challenge_handler;
     return NGX_CONF_OK;
 }
 
-static ngx_int_t ngx_http_hello_world(ngx_conf_t *cf) {
+static ngx_int_t ngx_http_js_challenge(ngx_conf_t *cf) {
 
     ngx_http_handler_pt *h;
     ngx_http_core_main_conf_t *cmcf = ngx_http_conf_get_module_main_conf(cf, ngx_http_core_module);
@@ -260,7 +259,7 @@ static ngx_int_t ngx_http_hello_world(ngx_conf_t *cf) {
         return NGX_ERROR;
     }
 
-    *h = ngx_http_hello_world_handler;
+    *h = ngx_http_js_challenge_handler;
 
     return NGX_OK;
 }
