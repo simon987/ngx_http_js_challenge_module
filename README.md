@@ -10,9 +10,9 @@ Simple javascript proof-of-work based access for Nginx with virtually no overhea
 Easy installation: just add `load_module /path/to/ngx_http_js_challenge_module.so;` to your
 `nginx.conf` file and follow the [configuration instructions](#configuration).
 
-
-![throughput.png](throughput.png)
-
+<p align="center">
+  <img width="600px" src="throughput.png"/>
+</p>
 
 ### Configuration
 
