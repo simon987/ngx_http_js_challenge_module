@@ -84,3 +84,10 @@ These steps have to be performed on machine with compatible configuration (same 
     ./build.sh
     ```
 4. The dynamic module can be found at `${NGINX_PATH}/objs/ngx_http_js_challenge_module.so`
+
+
+
+### Known limitations / TODO
+
+* Users with cookies disabled will be stuck in an infinite refresh loop (TODO: redirect with a known query param, if no cookie is specified but the query arg is set, display an error page)
+* If nginx is behind a reverse proxy/load balancer, the same challenge will be sent to different users and/or the response cookie will be invalidated when the user is re-routed to another server. (TODO: use the x-real-ip header when available) 
