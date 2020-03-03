@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ -z ${NGINX_PATH+x} ]; then
   echo "Please set the NGINX_PATH variable";
   exit
