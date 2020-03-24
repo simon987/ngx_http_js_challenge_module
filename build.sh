@@ -13,6 +13,6 @@ echo $CONFIG_ARGS
 (
   cd ${NGINX_PATH} || exit
   bash -c "./configure ${CONFIG_ARGS}"
-  make modules -j "$(nproc)"
+  CFLAGS=-std=c99 make modules -j "$(nproc)"
 )
 
