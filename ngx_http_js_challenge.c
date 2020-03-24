@@ -42,11 +42,16 @@ static char *ngx_http_js_challenge_merge_loc_conf(ngx_conf_t *cf, void *parent, 
 
 static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r);
 
+static const ngx_str_t str_js_challenge = ngx_string("js_challenge");
+static const ngx_str_t str_js_challenge_bucket_duration = ngx_string("js_challenge_bucket_duration");
+static const ngx_str_t str_js_challenge_secret = ngx_string("js_challenge_secret");
+static const ngx_str_t str_js_challenge_html = ngx_string("js_challenge_html");
+static const ngx_str_t str_js_challenge_title = ngx_string("js_challenge_title");
 
 static ngx_command_t ngx_http_js_challenge_commands[] = {
 
         {
-                ngx_string("js_challenge"),
+                str_js_challenge,
                 NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_FLAG,
                 ngx_conf_set_flag_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
@@ -54,7 +59,7 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
                 NULL
         },
         {
-                ngx_string("js_challenge_bucket_duration"),
+                str_js_challenge_bucket_duration,
                 NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
                 ngx_conf_set_num_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
@@ -62,7 +67,7 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
                 NULL
         },
         {
-                ngx_string("js_challenge_secret"),
+                str_js_challenge_bucket_secret,
                 NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
                 ngx_conf_set_str_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
@@ -70,15 +75,7 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
                 NULL
         },
         {
-                ngx_string("js_challenge_secret"),
-                NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
-                ngx_conf_set_str_slot,
-                NGX_HTTP_LOC_CONF_OFFSET,
-                offsetof(ngx_http_js_challenge_loc_conf_t, secret),
-                NULL
-        },
-        {
-                ngx_string("js_challenge_html"),
+                str_js_challenge_html,
                 NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
                 ngx_conf_set_str_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
@@ -86,7 +83,7 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
                 NULL
         },
         {
-                ngx_string("js_challenge_title"),
+                str_js_challenge_title,
                 NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
                 ngx_conf_set_str_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
@@ -341,7 +338,8 @@ static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r) {
     get_challenge_string(bucket, addr, conf->secret, challenge);
 
     ngx_str_t response;
-    int ret = get_cookie(r, &((ngx_str_t) ngx_string("res")), &response);
+    ngx_str_t cookie_name = ngx_string("res");
+    int ret = get_cookie(r, &cookie_name, &response);
 
     if (ret < 0) {
         return serve_challenge(r, challenge, conf->html, conf->title);
