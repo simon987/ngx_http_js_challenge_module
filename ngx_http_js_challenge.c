@@ -66,7 +66,7 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
                 NULL
         },
         {
-                ngx_string("js_challenge_bucket_secret"),
+                ngx_string("js_challenge_secret"),
                 NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
                 ngx_conf_set_str_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
@@ -74,7 +74,7 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
                 NULL
         },
         {
-                ngx_string("js_challenge_bucket_html"),
+                ngx_string("js_challenge_html"),
                 NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
                 ngx_conf_set_str_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
@@ -82,7 +82,7 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
                 NULL
         },
         {
-                ngx_string("js_challenge_bucket_title"),
+                ngx_string("js_challenge_title"),
                 NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
                 ngx_conf_set_str_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
