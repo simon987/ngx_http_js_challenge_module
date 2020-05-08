@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
 #include "ngx_http.c"
 
 #define DEFAULT_SECRET "changeme"
@@ -42,6 +45,7 @@ static char *ngx_http_js_challenge_merge_loc_conf(ngx_conf_t *cf, void *parent, 
 
 static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r);
 
+unsigned char *__sha1(const unsigned char *d, size_t n, unsigned char *md);
 
 static ngx_command_t ngx_http_js_challenge_commands[] = {
 
@@ -88,36 +92,35 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
         ngx_null_command
 };
 
-/**
+/*
  * Module context
  */
 static ngx_http_module_t ngx_http_js_challenge_module_ctx = {
         NULL, /* preconfiguration */
         ngx_http_js_challenge, /* postconfiguration */
 
-        NULL, /* create main configuration */
-        NULL, /* init main configuration */
+        NULL,
+        NULL,
 
-        NULL, /* create server configuration */
-        NULL, /* merge server configuration */
+        NULL,
+        NULL,
 
         ngx_http_js_challenge_create_loc_conf,
         ngx_http_js_challenge_merge_loc_conf
 };
 
-/* Module definition. */
 ngx_module_t ngx_http_js_challenge_module = {
         NGX_MODULE_V1,
-        &ngx_http_js_challenge_module_ctx, /* module context */
-        ngx_http_js_challenge_commands, /* module directives */
-        NGX_HTTP_MODULE, /* module type */
-        NULL, /* init master */
-        NULL, /* init module */
-        NULL, /* init process */
-        NULL, /* init thread */
-        NULL, /* exit thread */
-        NULL, /* exit process */
-        NULL, /* exit master */
+        &ngx_http_js_challenge_module_ctx,
+        ngx_http_js_challenge_commands,
+        NGX_HTTP_MODULE,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
         NGX_MODULE_V1_PADDING
 };
 
@@ -235,7 +238,6 @@ int serve_challenge(ngx_http_request_t *r, const char *challenge, const char *ht
     return ngx_http_output_filter(r, &out);
 }
 
-unsigned char *_sha1(const unsigned char *d, size_t n, unsigned char *md);
 
 /**
  * @param out 40 bytes long string!
@@ -252,11 +254,7 @@ void get_challenge_string(int32_t bucket, ngx_str_t addr, ngx_str_t secret, char
     memcpy((buf + sizeof(int32_t)), addr.data, addr.len);
     memcpy((buf + sizeof(int32_t) + addr.len), secret.data, secret.len);
 
-#ifndef HEADER_SHA_H
-    _sha1((unsigned char *) buf, (size_t) (sizeof(int32_t) + addr.len + secret.len), md);
-#else
-    SHA1((unsigned char *) buf, (size_t) (sizeof(int32_t) + addr.len + secret.len), md);
-#endif
+    __sha1((unsigned char *) buf, (size_t) (sizeof(int32_t) + addr.len + secret.len), md);
     buf2hex(md, SHA1_MD_LEN, out);
 }
 
@@ -380,16 +378,7 @@ static ngx_int_t ngx_http_js_challenge(ngx_conf_t *cf) {
  * By Steve Reid <sreid@sea-to-sky.net>
  * 100% Public Domain
  */
-#ifndef HEADER_SHA_H
-
-#define SHA1HANDSOFF (1)
-
-#include <stdint.h>
-
-#include <stdio.h>
-#include <string.h>
-
-void SHA1_Transform(uint32_t state[5], const uint8_t buffer[64]);
+void __SHA1_Transform(uint32_t state[5], const uint8_t buffer[64]);
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
@@ -427,7 +416,7 @@ void SHA1_Transform(uint32_t state[5], const uint8_t buffer[64]);
 
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
-void SHA1_Transform(uint32_t state[5], const uint8_t buffer[64]) {
+void __SHA1_Transform(uint32_t state[5], const uint8_t buffer[64]) {
     uint32_t a, b, c, d, e;
     typedef union {
         uint8_t c[64];
@@ -435,13 +424,9 @@ void SHA1_Transform(uint32_t state[5], const uint8_t buffer[64]) {
     } CHAR64LONG16;
     CHAR64LONG16 *block;
 
-#ifdef SHA1HANDSOFF
     CHAR64LONG16 workspace;
     block = &workspace;
     memcpy(block, buffer, 64);
-#else
-    block = (CHAR64LONG16*)buffer;
-#endif
 
     /* Copy context->state[] to working vars */
     a = state[0];
@@ -543,24 +528,25 @@ void SHA1_Transform(uint32_t state[5], const uint8_t buffer[64]) {
     a = b = c = d = e = 0;
 }
 
-/** SHA-1 Context */
 typedef struct {
     uint32_t state[5];
-    /**< Context state */
     uint32_t count[2];
-    /**< Counter       */
-    uint8_t buffer[64]; /**< SHA-1 buffer  */
-} SHA1_CTX;
+    uint8_t buffer[64];
+} __SHA1_CTX;
 
-/** SHA-1 Digest size in bytes */
-#define SHA1_DIGEST_SIZE 20
+void __SHA1_Update(__SHA1_CTX *context, const void *p, size_t len);
 
-void SHA1_Init(SHA1_CTX *context);
+void __SHA1_Final(uint8_t digest[SHA1_MD_LEN], __SHA1_CTX *context);
 
-void SHA1_Update(SHA1_CTX *context, const void *p, size_t len);
-
-void SHA1_Final(uint8_t digest[SHA1_DIGEST_SIZE], SHA1_CTX *context);
-
+void __SHA1_Init(__SHA1_CTX *c)
+{
+    memset(c, 0, sizeof(*c));
+    c->state[0] = 0x67452301UL;
+    c->state[1] = 0xefcdab89UL;
+    c->state[2] = 0x98badcfeUL;
+    c->state[3] = 0x10325476UL;
+    c->state[4] = 0xc3d2e1f0UL;
+}
 /**
 * Run your data through this
 *
@@ -568,7 +554,7 @@ void SHA1_Final(uint8_t digest[SHA1_DIGEST_SIZE], SHA1_CTX *context);
 * @param p       Buffer to run SHA1 on
 * @param len     Number of bytes
 */
-void SHA1_Update(SHA1_CTX *context, const void *p, size_t len) {
+void __SHA1_Update(__SHA1_CTX *context, const void *p, size_t len) {
     const uint8_t *data = p;
     size_t i, j;
 
@@ -579,9 +565,9 @@ void SHA1_Update(SHA1_CTX *context, const void *p, size_t len) {
     context->count[1] += (uint32_t) (len >> 29);
     if ((j + len) > 63) {
         memcpy(&context->buffer[j], data, (i = 64 - j));
-        SHA1_Transform(context->state, context->buffer);
+        __SHA1_Transform(context->state, context->buffer);
         for (; i + 63 < len; i += 64) {
-            SHA1_Transform(context->state, data + i);
+            __SHA1_Transform(context->state, data + i);
         }
         j = 0;
     } else i = 0;
@@ -595,7 +581,7 @@ void SHA1_Update(SHA1_CTX *context, const void *p, size_t len) {
 * @param digest  Generated message digest
 * @param context SHA1-Context
 */
-void SHA1_Final(uint8_t digest[SHA1_DIGEST_SIZE], SHA1_CTX *context) {
+void __SHA1_Final(uint8_t digest[SHA1_MD_LEN], __SHA1_CTX *context) {
     uint32_t i;
     uint8_t finalcount[8];
 
@@ -603,12 +589,12 @@ void SHA1_Final(uint8_t digest[SHA1_DIGEST_SIZE], SHA1_CTX *context) {
         finalcount[i] = (uint8_t) ((context->count[(i >= 4 ? 0 : 1)]
                 >> ((3 - (i & 3)) * 8)) & 255);
     }
-    SHA1_Update(context, (uint8_t *) "\200", 1);
+    __SHA1_Update(context, (uint8_t *) "\200", 1);
     while ((context->count[0] & 504) != 448) {
-        SHA1_Update(context, (uint8_t *) "\0", 1);
+        __SHA1_Update(context, (uint8_t *) "\0", 1);
     }
-    SHA1_Update(context, finalcount, 8); /* Should cause SHA1_Transform */
-    for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
+    __SHA1_Update(context, finalcount, 8); /* Should cause SHA1_Transform */
+    for (i = 0; i < SHA1_MD_LEN; i++) {
         digest[i] = (uint8_t)
                 ((context->state[i >> 2] >> ((3 - (i & 3)) * 8)) & 255);
     }
@@ -620,18 +606,13 @@ void SHA1_Final(uint8_t digest[SHA1_DIGEST_SIZE], SHA1_CTX *context) {
     memset(context->count, 0, 8);
     memset(finalcount, 0, 8);    /* SWR */
 
-#ifdef SHA1HANDSOFF  /* make SHA1Transform overwrite its own static vars */
-    SHA1_Transform(context->state, context->buffer);
-#endif
+    __SHA1_Transform(context->state, context->buffer);
 }
 
-unsigned char *_sha1(const unsigned char *d, size_t n, unsigned char *md) {
-    SHA1_CTX c;
-    SHA1_Init(&c);
-    SHA1_Update(&c, d, n);
-    SHA1_Final(md, &c);
+unsigned char *__sha1(const unsigned char *d, size_t n, unsigned char *md) {
+    __SHA1_CTX c;
+    __SHA1_Init(&c);
+    __SHA1_Update(&c, d, n);
+    __SHA1_Final(md, &c);
     return md;
 }
-
-#endif
-
