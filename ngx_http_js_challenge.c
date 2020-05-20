@@ -282,7 +282,7 @@ int verify_response(ngx_str_t response, char *challenge) {
     }
 
     unsigned char md[SHA1_MD_LEN];
-    SHA1((unsigned char *) response.data, response.len, md);
+    __sha1((unsigned char *) response.data, response.len, md);
 
     unsigned int nibble1;
     if (challenge[0] <= '9') {
