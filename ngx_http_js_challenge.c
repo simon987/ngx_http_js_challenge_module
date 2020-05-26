@@ -235,7 +235,8 @@ int serve_challenge(ngx_http_request_t *r, const char *challenge, const char *ht
     r->headers_out.content_length_n = size;
     ngx_http_send_header(r);
 
-    return ngx_http_output_filter(r, &out);
+    ngx_http_output_filter(r, &out);
+    return NGX_DONE;
 }
 
 
