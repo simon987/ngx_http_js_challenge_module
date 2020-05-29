@@ -69,7 +69,7 @@ These steps have to be performed on machine with compatible configuration (same 
 
 1. Install dependencies
     ```bash
-    apt install libperl-dev libgeoip-dev libgd-dev libxslt1-dev
+    apt install libperl-dev libgeoip-dev libgd-dev libxslt1-dev libpcre3-dev
     ```
 2. Download nginx tarball corresponding to your current version (Check with `nginx -v`)
     ```bash
