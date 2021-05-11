@@ -37,6 +37,7 @@ server {
     js_challenge_html /path/to/body.html;
     js_challenge_bucket_duration 3600;
     js_challenge_title "Verifying your browser...";
+    js_challenge_whitelist /path/to/whitelist/file.conf;
 
     location /static {
         js_challenge off;
@@ -57,6 +58,7 @@ server {
 * `js_challenge_html "/path/to/file.html"` Path to html file to be inserted in the `<body>` tag of the interstitial page
 * `js_challenge_title "title"` Will be inserted in the `<title>` tag of the interstitial page. DEFAULT: "Verifying your browser..."
 * `js_challenge_bucket_duration time` Interval to prompt js challenge, in seconds. DEFAULT: 3600
+* `js_challenge_whitelist "/path/to/whitelist/file.conf"` Path to conf file containing whitelisted hosts and networks
 
 ### Installation
 

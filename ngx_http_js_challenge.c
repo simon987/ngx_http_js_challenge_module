@@ -27,7 +27,7 @@
 
 #define DEFAULT_TITLE "Verifying your browser..."
 
-#define WHITELIST_MAX_LENGTH 256
+#define WHITELIST_MAX_LENGTH 1024
 
 
 typedef struct {
@@ -219,7 +219,7 @@ static size_t load_whitelist( const char* file, network_info_t* list, size_t max
             }
 
 
-        } while ((token = strtok(NULL, ";")) != NULL);
+        } while (len < WHITELIST_MAX_LENGTH && ((token = strtok(NULL, ";")) != NULL));
     }
 
     free(linebuf);
