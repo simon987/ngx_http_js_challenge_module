@@ -214,6 +214,7 @@ int serve_challenge(ngx_http_request_t *r, const char *challenge, const char *ht
     *(title_c_str + title.len) = '\0';
 
     unsigned char buf[32768];
+    static const ngx_str_t content_type = ngx_string("text/html;charset=utf-8");
 
     if (html == NULL) {
         html = "<h2>Set the <code>js_challenge_html /path/to/body.html;</code> directive to change this page.</h2>";
@@ -232,6 +233,7 @@ int serve_challenge(ngx_http_request_t *r, const char *challenge, const char *ht
 
     r->headers_out.status = NGX_HTTP_OK;
     r->headers_out.content_length_n = size;
+    r->headers_out.content_type = content_type;
     ngx_http_send_header(r);
 
     ngx_http_output_filter(r, &out);
