@@ -1,8 +1,8 @@
+#include <ngx_http.h>
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
-
-#include "ngx_http.c"
 
 #define DEFAULT_SECRET "changeme"
 #define SHA1_MD_LEN 20
@@ -298,15 +298,20 @@ int verify_response(ngx_str_t response, char *challenge) {
 }
 
 int get_cookie(ngx_http_request_t *r, ngx_str_t *name, ngx_str_t *value) {
+#if defined(nginx_version) && nginx_version >= 1023000
+    ngx_table_elt_t *h;
+    for (h = r->headers_in.cookie; h; h = h->next) {
+        u_char *start = h->value.data;
+        u_char *end = h->value.data + h->value.len;
+#else
     ngx_table_elt_t **h;
-
     h = r->headers_in.cookies.elts;
 
     ngx_uint_t i = 0;
     for (i = 0; i < r->headers_in.cookies.nelts; i++) {
         u_char *start = h[i]->value.data;
         u_char *end = h[i]->value.data + h[i]->value.len;
-
+#endif
         while (start < end) {
             while (start < end && *start == ' ') { start++; }
 
