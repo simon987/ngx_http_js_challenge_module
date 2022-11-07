@@ -350,13 +350,19 @@ static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r) {
     int ret = get_cookie(r, &cookie_name, &response);
 
     if (ret < 0) {
-        return serve_challenge(r, challenge, conf->html, conf->title);
+        //pass if request: "GET /favicon.ico HTTP/1.1"
+        if ( strncmp((char *)r->uri.data,"/favicon.ico",12) != 0){
+                return serve_challenge(r, challenge, conf->html, conf->title);
+        }
     }
 
     get_challenge_string(bucket, addr, conf->secret, challenge);
 
     if (verify_response(response, challenge) != 0) {
-        return serve_challenge(r, challenge, conf->html, conf->title);
+        //pass if request: "GET /favicon.ico HTTP/1.1"
+        if ( strncmp((char *)r->uri.data,"/favicon.ico",12) != 0){
+                return serve_challenge(r, challenge, conf->html, conf->title);
+        }
     }
 
     // Fallthrough next handler
