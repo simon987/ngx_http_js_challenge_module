@@ -231,7 +231,7 @@ int serve_challenge(ngx_http_request_t *r, const char *challenge, const char *ht
     b->memory = 1;
     b->last_buf = 1;
 
-    r->headers_out.status = NGX_HTTP_OK;
+    r->headers_out.status = NGX_HTTP_SERVICE_UNAVAILABLE;
     r->headers_out.content_length_n = size;
     r->headers_out.content_type = content_type;
     ngx_http_send_header(r);
