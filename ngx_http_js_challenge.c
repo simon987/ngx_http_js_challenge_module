@@ -50,7 +50,7 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
 
         {
                 ngx_string("js_challenge"),
-                NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_FLAG,
+                NGX_HTTP_LOC_CONF | NGX_HTTP_LIF_CONF | NGX_HTTP_SIF_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_FLAG,,
                 ngx_conf_set_flag_slot,
                 NGX_HTTP_LOC_CONF_OFFSET,
                 offsetof(ngx_http_js_challenge_loc_conf_t, enabled),
