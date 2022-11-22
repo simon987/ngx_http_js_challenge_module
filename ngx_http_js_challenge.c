@@ -352,12 +352,14 @@ static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r) {
     int ret = get_cookie(r, &cookie_name, &response);
 
     if (ret < 0) {
-        return serve_challenge(r, challenge, conf->html, conf->title);
+         ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "[ js challenge log ] sending challenge... ");
+         return serve_challenge(r, challenge, conf->html, conf->title);
     }
 
     get_challenge_string(bucket, addr, conf->secret, challenge);
 
     if (verify_response(response, challenge) != 0) {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "[ js challenge log ] wrong/expired cookie (res=%s), sending challenge...", response.data);
         return serve_challenge(r, challenge, conf->html, conf->title);
     }
 
