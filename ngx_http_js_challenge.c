@@ -174,7 +174,8 @@ static char *ngx_http_js_challenge_merge_loc_conf(ngx_conf_t *cf, void *parent, 
         }
 
         conf->html = ngx_palloc(cf->pool, info.st_size);
-        int ret = read(fd, conf->html, info.st_size);
+        int ret = read(fd, conf->html, info.st_size-1);
+        *(conf->html+ret) = '\0';
         close(fd);
         if (ret < 0) {
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "js_challenge_html: Could not read file '%s': %s", path,
