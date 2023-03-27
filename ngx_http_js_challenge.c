@@ -27,6 +27,14 @@
 
 #define DEFAULT_TITLE "Verifying your browser..."
 
+#define WHITELIST_MAX_LENGTH 1024
+
+
+typedef struct {
+    uint32_t addr;
+    uint32_t mask;
+} network_info_t;
+
 typedef struct {
     ngx_flag_t enabled;
     ngx_uint_t bucket_duration;
@@ -34,6 +42,9 @@ typedef struct {
     ngx_str_t html_path;
     ngx_str_t title;
     char *html;
+    ngx_str_t whitelist_path;
+    size_t whitelist_len;
+    network_info_t* whitelist;
 } ngx_http_js_challenge_loc_conf_t;
 
 static ngx_int_t ngx_http_js_challenge(ngx_conf_t *cf);
@@ -88,6 +99,14 @@ static ngx_command_t ngx_http_js_challenge_commands[] = {
                 offsetof(ngx_http_js_challenge_loc_conf_t, title),
                 NULL
         },
+        {
+                ngx_string("js_challenge_whitelist"),
+                NGX_HTTP_LOC_CONF | NGX_HTTP_SRV_CONF | NGX_CONF_TAKE1,
+                ngx_conf_set_str_slot,
+                NGX_HTTP_LOC_CONF_OFFSET,
+                offsetof(ngx_http_js_challenge_loc_conf_t, whitelist_path),
+                NULL
+        },
         ngx_null_command
 };
 
@@ -133,9 +152,81 @@ static void *ngx_http_js_challenge_create_loc_conf(ngx_conf_t *cf) {
     conf->secret = (ngx_str_t) {0, NULL};
     conf->bucket_duration = NGX_CONF_UNSET_UINT;
     conf->enabled = NGX_CONF_UNSET;
+    conf->whitelist_len = 0;
+    conf->whitelist = NULL;
 
     return conf;
 }
+
+
+static size_t load_whitelist( const char* file, network_info_t* list, size_t maxlen)
+{
+    FILE* fp = NULL;
+    char* linebuf = NULL;
+    char* token;
+    uint32_t octets[4];
+    uint32_t maskbits;
+    size_t len = 0;
+
+    if ((fp = fopen(file, "r")) == NULL) {
+        // Cannot open file
+        return 0;
+    }
+
+    // Allocate 1KB for line
+    linebuf = malloc(1024);
+    if (!linebuf) {
+        return 0;
+    }
+
+    // Read line
+    while (fgets(linebuf, 1024, fp) != NULL) {
+        // If line is empty or begins with # (comment)
+        // skip altogether
+        if (strlen(linebuf) == 0 || linebuf[0] == '#') {
+            continue;
+        }
+
+        // Split by ;
+        token = strtok(linebuf, ";");
+
+        do 
+        {
+            int res = sscanf(token, "%u.%u.%u.%u/%u",
+                &octets[0],
+                &octets[1],
+                &octets[2],
+                &octets[3],
+                &maskbits);
+            
+            // IP address found
+            if (res == 4 || res == 5) {
+                list[len].addr = ((octets[0] << 24) & 0xFF000000)
+                    | ((octets[1] << 16) & 0x00FF0000)
+                    | ((octets[2] << 8) & 0x0000FF00)
+                    | (octets[3] & 0x000000FF);
+
+                if (res == 5) {
+                    // IPv4 network address
+                    list[len].mask = ~((1u << (32 - maskbits)) - 1);
+                }
+                else {
+                    // IPv4 host address
+                    list[len].mask = 0xFFFFFFFF;
+                }
+
+                ++len;
+            }
+
+
+        } while (len < WHITELIST_MAX_LENGTH && ((token = strtok(NULL, ";")) != NULL));
+    }
+
+    free(linebuf);
+    fclose(fp);
+    return len;
+}
+
 
 
 static char *ngx_http_js_challenge_merge_loc_conf(ngx_conf_t *cf, void *parent, void *child) {
@@ -147,6 +238,8 @@ static char *ngx_http_js_challenge_merge_loc_conf(ngx_conf_t *cf, void *parent, 
     ngx_conf_merge_str_value(conf->secret, prev->secret, DEFAULT_SECRET)
     ngx_conf_merge_str_value(conf->html_path, prev->html_path, NULL)
     ngx_conf_merge_str_value(conf->title, prev->title, DEFAULT_TITLE)
+    ngx_conf_merge_str_value(conf->whitelist_path, prev->whitelist_path, NULL)
+    
 
     if (conf->bucket_duration < 1) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "bucket_duration must be equal or more than 1");
@@ -181,6 +274,32 @@ static char *ngx_http_js_challenge_merge_loc_conf(ngx_conf_t *cf, void *parent, 
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "js_challenge_html: Could not read file '%s': %s", path,
                                strerror(errno));
             return NGX_CONF_ERROR;
+        }
+    }
+
+    if (conf->whitelist_path.data == NULL) {
+        conf->whitelist_len = 0;
+    } else if (conf->enabled) {
+
+        // Allocate necessary memory
+        conf->whitelist = ngx_palloc(cf->pool, 
+            WHITELIST_MAX_LENGTH * sizeof(network_info_t));
+
+
+        if (prev->whitelist != NULL) {
+            // Copy whitelist from previous config
+            // without need to reload from file
+            conf->whitelist_len = prev->whitelist_len;
+            for (size_t i=0; i<conf->whitelist_len; ++i) {
+                conf->whitelist[i] = prev->whitelist[i];
+            }
+        } else {
+            // Read whitelist file
+            char path[PATH_MAX];
+            memcpy(path, conf->whitelist_path.data, conf->whitelist_path.len);
+            *(path + conf->whitelist_path.len) = '\0';
+
+            conf->whitelist_len = load_whitelist(path, conf->whitelist, WHITELIST_MAX_LENGTH);
         }
     }
 
@@ -334,13 +453,47 @@ int get_cookie(ngx_http_request_t *r, ngx_str_t *name, ngx_str_t *value) {
     return -1;
 }
 
-static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r) {
+static ngx_int_t ip_whitelist_hit (ngx_http_request_t *r, ngx_http_js_challenge_loc_conf_t* conf) {
+    char ipstr[16];
+    uint32_t ip;
+    //unsigned char* ipa, *ipb;
 
+    // Convert ngx_str_t to C string
+    memset(ipstr, 0, sizeof(ipstr));
+    ngx_snprintf((u_char*)ipstr, sizeof(ipstr), "%V", &r->connection->addr_text);
+
+    // Convert C string to uint32_t 
+    if ( !inet_pton(AF_INET, ipstr, &ip) ) {
+        return 0;
+    }
+    // Network to host order
+    ip = ntohl(ip);
+
+    // Iterate through whitelist
+    for (size_t i = 0; i < conf->whitelist_len; ++i) {
+        /*
+        ipa = (unsigned char*) &ip;
+        ipb = (unsigned char*) &conf->whitelist[i].addr;
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "TESTING %ud.%ud.%ud.%ud <> %ud.%ud.%ud.%ud", 
+            ipa[0],ipa[1],ipa[2],ipa[3],ipb[0],ipb[1],ipb[2],ipb[3]);
+        */
+        if ((ip & conf->whitelist[i].mask) == (conf->whitelist[i].addr & conf->whitelist[i].mask)) {
+            // Whitelist hit
+            return 1;
+        }
+    }
+    
+
+    return 0;
+}
+
+static ngx_int_t ngx_http_js_challenge_handler(ngx_http_request_t *r) {
     ngx_http_js_challenge_loc_conf_t *conf = ngx_http_get_module_loc_conf(r, ngx_http_js_challenge_module);
 
-    if (!conf->enabled) {
+    if ( !conf->enabled || (conf->enabled && ip_whitelist_hit(r, conf))) {
         return NGX_DECLINED;
     }
+           
 
     unsigned long bucket = r->start_sec - (r->start_sec % conf->bucket_duration);
     ngx_str_t addr = r->connection->addr_text;
